@@ -1,0 +1,58 @@
+<?xml version="1.0" standalone="yes"?>
+<NewDataSet>
+  <xs:schema id="NewDataSet" xmlns="" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xs:element name="NewDataSet" msdata:IsDataSet="true" msdata:UseCurrentLocale="true">
+      <xs:complexType>
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+          <xs:element name="SuppressVersion">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="CurrentVersion" type="xs:int" minOccurs="0" />
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="VulkanRenderer">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="FileName" type="xs:string" default="" />
+                <xs:element name="ErrorCode" type="xs:string" default="" />
+                <xs:element name="Message" type="xs:string" default="" />
+                <xs:element name="CodePrev" type="xs:unsignedInt" default="0" />
+                <xs:element name="CodeCurrent" type="xs:unsignedInt" default="0" />
+                <xs:element name="CodeNext" type="xs:unsignedInt" default="0" />
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+        </xs:choice>
+      </xs:complexType>
+      <xs:unique name="Constraint1" msdata:PrimaryKey="true">
+        <xs:selector xpath=".//VulkanRenderer" />
+        <xs:field xpath="FileName" />
+        <xs:field xpath="ErrorCode" />
+        <xs:field xpath="Message" />
+        <xs:field xpath="CodePrev" />
+        <xs:field xpath="CodeCurrent" />
+        <xs:field xpath="CodeNext" />
+      </xs:unique>
+    </xs:element>
+  </xs:schema>
+  <SuppressVersion>
+    <CurrentVersion>2</CurrentVersion>
+  </SuppressVersion>
+  <VulkanRenderer>
+    <FileName>main.cpp</FileName>
+    <ErrorCode>V506</ErrorCode>
+    <Message>Pointer to local variable 'descriptorSetLayout' is stored outside the scope of this variable. Such a pointer will become invalid.</Message>
+    <CodePrev>2210515336</CodePrev>
+    <CodeCurrent>3835482135</CodeCurrent>
+    <CodeNext>0</CodeNext>
+  </VulkanRenderer>
+  <VulkanRenderer>
+    <FileName>main.cpp</FileName>
+    <ErrorCode>V591</ErrorCode>
+    <Message>The 'main' function does not return a value, which is equivalent to 'return _'. It is possible that this is an unintended behavior. </Message>
+    <CodePrev>125</CodePrev>
+    <CodeCurrent>125</CodeCurrent>
+    <CodeNext>0</CodeNext>
+  </VulkanRenderer>
+</NewDataSet>
