@@ -282,29 +282,18 @@ namespace vkr::part {
         }();
 
         msaaSamples = [&]() {
-            vk::PhysicalDeviceProperties physicalDeviceProperties = getPhysicalDevice().getProperties();
+            vk::SampleCountFlags colorSampleCounts = getPhysicalDevice().getProperties().limits.framebufferColorSampleCounts;
+            vk::SampleCountFlags depthSampleCounts = getPhysicalDevice().getProperties().limits.framebufferDepthSampleCounts;
 
-            vk::SampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
-            if (counts & vk::SampleCountFlagBits::e64) {
-                return vk::SampleCountFlagBits::e64;
-            }
-            if (counts & vk::SampleCountFlagBits::e32) {
-                return vk::SampleCountFlagBits::e32;
-            }
-            if (counts & vk::SampleCountFlagBits::e16) {
-                return vk::SampleCountFlagBits::e16;
-            }
-            if (counts & vk::SampleCountFlagBits::e8) {
-                return vk::SampleCountFlagBits::e8;
-            }
-            if (counts & vk::SampleCountFlagBits::e4) {
-                return vk::SampleCountFlagBits::e4;
-            }
-            if (counts & vk::SampleCountFlagBits::e2) {
-                return vk::SampleCountFlagBits::e2;
+            vk::SampleCountFlags sampleCounts = colorSampleCounts & depthSampleCounts;
+
+            for (uint32_t i = static_cast<uint32_t>(getRenderer().getMaxAntialiasing()); i != 1; i /= 2) {
+                if (sampleCounts & static_cast<vk::SampleCountFlagBits>(i)) {
+                    return static_cast<vk::SampleCountFlagBits>(i);
+                }
             }
 
-            return vk::SampleCountFlagBits::e1;
+            throw std::runtime_error("No sample count is found");
         }();
     }
 
@@ -491,14 +480,16 @@ namespace vkr::part {
         }
 
         // presentMode
-        [&]() {
-            for (auto& mode : getSurfacePresentModes()) {
-                if (mode == vk::PresentModeKHR::eMailbox) {
-                    createInfo.presentMode = vk::PresentModeKHR::eMailbox;
-                    return;
+        createInfo.presentMode = [&]() {
+            for (vk::PresentModeKHR mode : getSurfacePresentModes()) {
+                switch (mode) {
+                    case vk::PresentModeKHR::eMailbox:
+                        return mode;
+                    case vk::PresentModeKHR::eImmediate:
+                        return mode;
                 }
             }
-            createInfo.presentMode = vk::PresentModeKHR::eFifo;
+            return vk::PresentModeKHR::eFifo;
         }();
 
         createInfo.imageArrayLayers = 1;                                    // imageArrayParts
@@ -1449,8 +1440,10 @@ namespace vkr::test {
                 fmt::print("Not a number\n");
             }
         }
+    }
 
-        return 0;
+    auto Application::getMaxAntialiasing() -> vk::SampleCountFlagBits {
+        return vk::SampleCountFlagBits::e64;
     }
     
     auto Application::onUpdate(float delta, float time) -> void {
@@ -1504,7 +1497,6 @@ namespace vkr::test {
 int main() {
     try {
         vkr::test::Application().start();
-
     }
     catch (const std::exception& e) {
         spdlog::error(e.what());

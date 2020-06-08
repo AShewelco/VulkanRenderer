@@ -27,6 +27,7 @@ namespace vkr::api {
         virtual auto getTexture() -> data::Texture& = 0;
         virtual auto getCamera() -> const data::Camera& = 0;
         virtual auto onUpdate(float delta, float time) -> void = 0;
+        virtual auto getMaxAntialiasing() -> vk::SampleCountFlagBits = 0;
     protected:
         auto getWindow() -> io::Window&;
         auto updateVertices() -> void;
@@ -345,6 +346,7 @@ namespace vkr::test {
         virtual auto getCamera() -> const data::Camera& override;
         virtual auto onUpdate(float delta, float time) -> void override;
         virtual auto selectPhysicalDevice(const std::vector<vk::PhysicalDeviceProperties>& physicalDeviceProperties) -> size_t override;
+        virtual auto getMaxAntialiasing() -> vk::SampleCountFlagBits override;
     private:
         data::Camera camera;
         std::vector<data::Vertex> vertices;
