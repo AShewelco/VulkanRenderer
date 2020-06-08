@@ -148,7 +148,7 @@ namespace vkr::part {
     ) {
         if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
             spdlog::error(callbackData->pMessage);
-            __debugbreak();
+            throw std::runtime_error(callbackData->pMessage);
         }
 
         else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
@@ -287,7 +287,7 @@ namespace vkr::part {
 
             vk::SampleCountFlags sampleCounts = colorSampleCounts & depthSampleCounts;
 
-            for (uint32_t i = static_cast<uint32_t>(getRenderer().getMaxAntialiasing()); i != 1; i /= 2) {
+            for (uint32_t i = static_cast<uint32_t>(getRenderer().getMaxAntialiasing()); i != 0; i /= 2) {
                 if (sampleCounts & static_cast<vk::SampleCountFlagBits>(i)) {
                     return static_cast<vk::SampleCountFlagBits>(i);
                 }
@@ -532,54 +532,80 @@ namespace vkr::part {
     }
 
     RenderPassPart::RenderPassPart() {
-        vk::AttachmentDescription colorAttachment;
-        colorAttachment.format = getSwapchainFormat();
-        colorAttachment.samples = getMsaaSamples();
-        colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
-        colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
-        colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-        colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-        colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
-        colorAttachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
+        std::vector<vk::AttachmentDescription> descriptions;
+        std::stack<vk::AttachmentReference> references;
 
-        vk::AttachmentDescription depthAttachment;
-        depthAttachment.format = getDepthFormat();
-        depthAttachment.samples = getMsaaSamples();
-        depthAttachment.loadOp = vk::AttachmentLoadOp::eClear;
-        depthAttachment.storeOp = vk::AttachmentStoreOp::eDontCare;
-        depthAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-        depthAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-        depthAttachment.initialLayout = vk::ImageLayout::eUndefined;
-        depthAttachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+        auto addAttachment = [&](vk::AttachmentDescription description, vk::ImageLayout referenceLayout) {
+            descriptions.push_back(description);
+            vk::AttachmentReference reference;
+            reference.attachment = static_cast<uint32_t>(descriptions.size() - 1);
+            reference.layout = referenceLayout;
+            references.push(reference);
+        };
 
-        vk::AttachmentDescription colorAttachmentResolve;
-        colorAttachmentResolve.format = getSwapchainFormat();
-        colorAttachmentResolve.samples = vk::SampleCountFlagBits::e1;
-        colorAttachmentResolve.loadOp = vk::AttachmentLoadOp::eDontCare;
-        colorAttachmentResolve.storeOp = vk::AttachmentStoreOp::eStore;
-        colorAttachmentResolve.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-        colorAttachmentResolve.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-        colorAttachmentResolve.initialLayout = vk::ImageLayout::eUndefined;
-        colorAttachmentResolve.finalLayout = vk::ImageLayout::ePresentSrcKHR;
+        vk::AttachmentReference& colorReference = [&]() -> auto& {
+            vk::AttachmentDescription description;
+            description.format = getSwapchainFormat();
+            description.samples = getMsaaSamples();
+            description.loadOp = vk::AttachmentLoadOp::eClear;
+            description.storeOp = vk::AttachmentStoreOp::eStore;
+            description.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+            description.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+            description.initialLayout = vk::ImageLayout::eUndefined;
+            description.finalLayout = [&]() {
+                if (getMsaaSamples() == vk::SampleCountFlagBits::e1) {
+                    return vk::ImageLayout::ePresentSrcKHR;
+                }
+                else {
+                    return vk::ImageLayout::eColorAttachmentOptimal;
+                }
+            }();
 
-        vk::AttachmentReference colorAttachmentReference;
-        colorAttachmentReference.attachment = 0;
-        colorAttachmentReference.layout = vk::ImageLayout::eColorAttachmentOptimal;
+            addAttachment(description, vk::ImageLayout::eColorAttachmentOptimal);
+            return references.top();
+        }();
 
-        vk::AttachmentReference depthAttachmentReference;
-        depthAttachmentReference.attachment = 1;
-        depthAttachmentReference.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+        vk::AttachmentReference& depthReference = [&]() -> auto& {
+            vk::AttachmentDescription description;
+            description.format = getDepthFormat();
+            description.samples = getMsaaSamples();
+            description.loadOp = vk::AttachmentLoadOp::eClear;
+            description.storeOp = vk::AttachmentStoreOp::eDontCare;
+            description.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+            description.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+            description.initialLayout = vk::ImageLayout::eUndefined;
+            description.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
-        vk::AttachmentReference colorAttachmentResolveReference;
-        colorAttachmentResolveReference.attachment = 2;
-        colorAttachmentResolveReference.layout = vk::ImageLayout::eColorAttachmentOptimal;
+            addAttachment(description, vk::ImageLayout::eDepthStencilAttachmentOptimal);
+            return references.top();
+        }();
+
+        vk::AttachmentReference* colorResolveReference = [&]() -> vk::AttachmentReference* {
+            if (getMsaaSamples() == vk::SampleCountFlagBits::e1) {
+                return nullptr;
+            }
+            else {
+                vk::AttachmentDescription description;
+                description.format = getSwapchainFormat();
+                description.samples = vk::SampleCountFlagBits::e1;
+                description.loadOp = vk::AttachmentLoadOp::eDontCare;
+                description.storeOp = vk::AttachmentStoreOp::eStore;
+                description.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+                description.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+                description.initialLayout = vk::ImageLayout::eUndefined;
+                description.finalLayout = vk::ImageLayout::ePresentSrcKHR;
+
+                addAttachment(description, vk::ImageLayout::eColorAttachmentOptimal);
+                return &references.top();
+            }
+        }();
 
         vk::SubpassDescription subpass;
         subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
         subpass.colorAttachmentCount = 1;
-        subpass.pColorAttachments = &colorAttachmentReference;
-        subpass.pDepthStencilAttachment = &depthAttachmentReference;
-        subpass.pResolveAttachments = &colorAttachmentResolveReference;
+        subpass.pColorAttachments = &colorReference;
+        subpass.pDepthStencilAttachment = &depthReference;
+        subpass.pResolveAttachments = colorResolveReference;
 
         vk::SubpassDependency dependency;
         dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -589,11 +615,9 @@ namespace vkr::part {
         dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
         dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
 
-        std::array attachments = { colorAttachment, depthAttachment, colorAttachmentResolve };
-
         vk::RenderPassCreateInfo info;
-        info.attachmentCount = static_cast<uint32_t>(attachments.size());
-        info.pAttachments = attachments.data();
+        info.attachmentCount = static_cast<uint32_t>(descriptions.size());
+        info.pAttachments = descriptions.data();
         info.subpassCount = 1;
         info.pSubpasses = &subpass;
         info.dependencyCount = 1;
@@ -936,6 +960,10 @@ namespace vkr::part {
     }
 
     auto ColorResourcesPart::buildColorResources(vk::Extent2D extent) -> void {
+        if (getMsaaSamples() == vk::SampleCountFlagBits::e1) {
+            return;
+        }
+
         {
             std::tie(colorImage, colorImageMemory) = makeImage({ extent.width , extent.height },
                 1,
@@ -976,7 +1004,14 @@ namespace vkr::part {
         framebuffers.clear();
 
         for (vk::ImageView view : getSwapchainImageViews()) {
-            std::array attachments = { getColorImageView(), getDepthImageView(), view };
+            std::vector<vk::ImageView> attachments;
+
+            if (getMsaaSamples() != vk::SampleCountFlagBits::e1) {
+                attachments = { getColorImageView(), getDepthImageView(), view };
+            }
+            else {
+                attachments = { view, getDepthImageView() };
+            }
 
             vk::FramebufferCreateInfo info;
             info.renderPass = getRenderPass();
@@ -1443,7 +1478,7 @@ namespace vkr::test {
     }
 
     auto Application::getMaxAntialiasing() -> vk::SampleCountFlagBits {
-        return vk::SampleCountFlagBits::e64;
+        return vk::SampleCountFlagBits::e1;
     }
     
     auto Application::onUpdate(float delta, float time) -> void {

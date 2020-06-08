@@ -20,6 +20,7 @@
 #include <typeinfo>
 #include <stdexcept>
 #include <sstream>
+#include <stack>
 #include <string>
 #include <span>
 #include <unordered_map>
