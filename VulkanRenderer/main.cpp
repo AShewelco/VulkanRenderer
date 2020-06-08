@@ -163,7 +163,7 @@ namespace vkr::part {
             spdlog::info(callbackData->pMessage);
         }
 
-        return VK_TRUE;
+        return VK_FALSE;
     }
 
     SurfacePart::SurfacePart() : io::Window("", glm::ivec2(640, 480), false) {
@@ -842,7 +842,7 @@ namespace vkr::part {
             }
 
             commandBuffer.pipelineBarrier(sourceStage, destinationStage, {}, {}, {}, imageMemoryBarrier);
-            });
+        });
     }
 
     auto CommandPoolPart::copyBufferToImage(vk::Buffer buffer, vk::Image image, glm::uvec2 size) -> void {
@@ -934,8 +934,6 @@ namespace vkr::part {
 
             commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, {}, {}, barrier);
             });
-
-
     }
 
     ColorResourcesPart::ColorResourcesPart() {
