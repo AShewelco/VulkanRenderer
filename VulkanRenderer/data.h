@@ -27,15 +27,18 @@ namespace vkr::data {
 
     class Texture {
     public:
+        Texture() = default;
         Texture(const char* file);
         Texture(const Texture&) = delete;
+        Texture(Texture&& other);
+        auto operator=(Texture&& other) -> void;
         ~Texture();
         auto getDimentions() const->glm::ivec2;
         auto getPixels() const -> const uint8_t*;
         auto getSize() const->size_t;
     private:
-        glm::ivec2 size;
-        stb::stbi_uc* data;
+        glm::ivec2 size = glm::ivec2(0, 0);
+        stb::stbi_uc* data = nullptr;
     };
 
     class Model {

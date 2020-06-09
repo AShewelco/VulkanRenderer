@@ -25,8 +25,22 @@ namespace vkr::data {
         }
     }
 
+    Texture::Texture(Texture&& other) {
+        std::swap(size, other.size);
+        std::swap(data, other.data);
+    }
+
+    auto Texture::operator=(Texture&& other) -> void {
+        size = other.size;
+        data = other.data;
+        other.size = glm::ivec2(0, 0);
+        other.data = nullptr;
+    }
+
     Texture::~Texture() {
-        stb::stbi_image_free(data);
+        if (data) {
+            stb::stbi_image_free(data);
+        }
     }
 
     auto Texture::getDimentions() const -> glm::ivec2 {

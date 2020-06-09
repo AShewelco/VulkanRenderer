@@ -1,31 +1,23 @@
 #include "main.h"
 
 namespace vkr::api {
-    auto Renderer::start() -> void {
-        part::BeginPart::renderer = this;
-        part::LastPart part;
-        this->part = &part;
-        part.start();
+    Renderer::Renderer(api::RendererCreateInfo&& rendererCreateInfo) : LastPart(std::move(rendererCreateInfo)) {}
+    
+    auto Renderer::getCamera() -> data::Camera& {
+        return LastPart::getCamera();
     }
     
     auto Renderer::getWindow() -> io::Window& {
-        return *static_cast<io::Window*>(part);
+        return *static_cast<io::Window*>(this);
     }
     
-    auto Renderer::updateVertices() -> void {
-        part->updateVertices();
-    }
-    
-    auto Renderer::setVertexData(const data::Model& data) -> void {
-        part->setVertexData(data);
+    auto Renderer::runLoop() -> void {
+        LastPart::runLoop();
     }
 }
 
 namespace vkr::part {
-    api::Renderer* BeginPart::renderer = nullptr;
-
-    BeginPart::BeginPart() {
-        assert(renderer != nullptr);
+    BeginPart::BeginPart(api::RendererCreateInfo&& rendererCreateInfo) : rendererCreateInfo(std::move(rendererCreateInfo)) {
         glfw::glfwSetErrorCallback([](int code, const char* message) {
             throw std::runtime_error(fmt::format("GLFW: {}", message));
         });
@@ -43,17 +35,17 @@ namespace vkr::part {
         glfw::glfwTerminate();
     }
 
-    auto BeginPart::getRenderer() -> api::Renderer& {
-        return *renderer;
+    auto BeginPart::getCreateInfo() -> api::RendererCreateInfo& {
+        return rendererCreateInfo;
     }
 
-    InstancePart::InstancePart() {
+    InstancePart::InstancePart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         using namespace std::string_literals;
 
         static vk::DynamicLoader l;
         VULKAN_HPP_DEFAULT_DISPATCHER.init(l.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr"));
 
-        bool useDebugger = getRenderer().getDebuggerMinimumLevel() != api::DebuggerMinimunLevel::eDisabled;
+        bool useDebugger = getCreateInfo().debuggerMinimumLevel != api::DebuggerMinimunLevel::eDisabled;
 
         extentions = []() {
             std::vector<const char*> result;
@@ -99,22 +91,22 @@ namespace vkr::part {
         if (useDebugger) {
             vk::DebugUtilsMessengerCreateInfoEXT info;
 
-            if (getRenderer().getDebuggerMinimumLevel() == api::DebuggerMinimunLevel::eVerbose) {
+            if (getCreateInfo().debuggerMinimumLevel == api::DebuggerMinimunLevel::eVerbose) {
                 info.messageSeverity |= vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose;
                 info.messageSeverity |= vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo;
                 info.messageSeverity |= vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning;
                 info.messageSeverity |= vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
             }
-            else if (getRenderer().getDebuggerMinimumLevel() == api::DebuggerMinimunLevel::eInfo) {
+            else if (getCreateInfo().debuggerMinimumLevel == api::DebuggerMinimunLevel::eInfo) {
                 info.messageSeverity |= vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo;
                 info.messageSeverity |= vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning;
                 info.messageSeverity |= vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
             }
-            else if (getRenderer().getDebuggerMinimumLevel() == api::DebuggerMinimunLevel::eWarning) {
+            else if (getCreateInfo().debuggerMinimumLevel == api::DebuggerMinimunLevel::eWarning) {
                 info.messageSeverity |= vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning;
                 info.messageSeverity |= vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
             }
-            else if (getRenderer().getDebuggerMinimumLevel() == api::DebuggerMinimunLevel::eError) {
+            else if (getCreateInfo().debuggerMinimumLevel == api::DebuggerMinimunLevel::eError) {
                 info.messageSeverity |= vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
             }
 
@@ -166,7 +158,7 @@ namespace vkr::part {
         return VK_FALSE;
     }
 
-    SurfacePart::SurfacePart() : io::Window("", glm::ivec2(640, 480), false) {
+    SurfacePart::SurfacePart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)), io::Window("", glm::ivec2(640, 480), false) {
         VkSurfaceKHR surface_;
         glfw::glfwCreateWindowSurface((VkInstance)(getInstance()), getWindowPointer(), nullptr, &surface_);
         vk::ObjectDestroy<vk::Instance, VULKAN_HPP_DEFAULT_DISPATCHER_TYPE> deleter(getInstance());
@@ -177,7 +169,7 @@ namespace vkr::part {
         return *surface;
     }
 
-    PhysicalDevicePart::PhysicalDevicePart() {
+    PhysicalDevicePart::PhysicalDevicePart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         using namespace std::string_literals;
 
         {
@@ -191,7 +183,7 @@ namespace vkr::part {
             else {
                 using namespace algorithm;
                 std::vector<vk::PhysicalDeviceProperties> properties = select(devices, [](auto d) { return d.getProperties(); });
-                device = devices.at(getRenderer().selectPhysicalDevice(properties));
+                device = devices.at(getCreateInfo().deviceSelector(properties));
             }
         }
 
@@ -252,7 +244,7 @@ namespace vkr::part {
         return queueFamilyIndices;
     }
 
-    PhysicalDeviceDataPart::PhysicalDeviceDataPart() {
+    PhysicalDeviceDataPart::PhysicalDeviceDataPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         surfaceFormats = getPhysicalDevice().getSurfaceFormatsKHR(getSurface());
 
         if (surfaceFormats.empty()) {
@@ -287,7 +279,7 @@ namespace vkr::part {
 
             vk::SampleCountFlags sampleCounts = colorSampleCounts & depthSampleCounts;
 
-            for (uint32_t i = static_cast<uint32_t>(getRenderer().getMaxAntialiasing()); i != 0; i /= 2) {
+            for (uint32_t i = static_cast<uint32_t>(getCreateInfo().maxAntialiasing); i != 0; i /= 2) {
                 if (sampleCounts & static_cast<vk::SampleCountFlagBits>(i)) {
                     return static_cast<vk::SampleCountFlagBits>(i);
                 }
@@ -329,7 +321,7 @@ namespace vkr::part {
         return getPhysicalDevice().getSurfaceCapabilitiesKHR(getSurface()).currentExtent;
     }
 
-    DevicePart::DevicePart() {
+    DevicePart::DevicePart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
         std::unordered_set<uint32_t> uniqueQueueFamilyIndices;
         uniqueQueueFamilyIndices.insert(getGraphicsQueueFamilyIndex());
@@ -437,7 +429,7 @@ namespace vkr::part {
         return device->createImageViewUnique(imageViewCreateInfo);
     }
 
-    SwapchainPart::SwapchainPart() {
+    SwapchainPart::SwapchainPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         buildSwapchain(getCurrentExtent());
     }
 
@@ -509,7 +501,7 @@ namespace vkr::part {
         swapchain = getDevice().createSwapchainKHRUnique(createInfo); // swapchain
     }
 
-    ImagesPart::ImagesPart() {
+    ImagesPart::ImagesPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         buildImages(getCurrentExtent());
     }
 
@@ -531,7 +523,7 @@ namespace vkr::part {
         }
     }
 
-    RenderPassPart::RenderPassPart() {
+    RenderPassPart::RenderPassPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         std::vector<vk::AttachmentDescription> descriptions;
         std::stack<vk::AttachmentReference> references;
 
@@ -630,7 +622,7 @@ namespace vkr::part {
         return *renderPass;
     }
 
-    DescriptorSetLayoutPart::DescriptorSetLayoutPart() {
+    DescriptorSetLayoutPart::DescriptorSetLayoutPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         vk::DescriptorSetLayoutBinding uboLayoutBinding;
         uboLayoutBinding.binding = 0;
         uboLayoutBinding.descriptorCount = 1;
@@ -658,7 +650,7 @@ namespace vkr::part {
         return *descriptorSetLayout;
     }
 
-    GraphicsPipelinePart::GraphicsPipelinePart() {
+    GraphicsPipelinePart::GraphicsPipelinePart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         buildGraphicsPipeline(getCurrentExtent());
     }
 
@@ -803,7 +795,7 @@ namespace vkr::part {
         pipeline = getDevice().createGraphicsPipelineUnique({}, pipelineCreateInfo);
     }
 
-    CommandPoolPart::CommandPoolPart() {
+    CommandPoolPart::CommandPoolPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         vk::CommandPoolCreateInfo info;
         info.queueFamilyIndex = getGraphicsQueueFamilyIndex();
         commandPool = getDevice().createCommandPoolUnique(info);
@@ -951,7 +943,7 @@ namespace vkr::part {
             });
     }
 
-    ColorResourcesPart::ColorResourcesPart() {
+    ColorResourcesPart::ColorResourcesPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         buildColorResources(getCurrentExtent());
     }
 
@@ -977,7 +969,7 @@ namespace vkr::part {
         colorImageView = makeImageView(*colorImage, getSwapchainFormat(), vk::ImageAspectFlagBits::eColor, 1);
     }
 
-    DepthPart::DepthPart() {
+    DepthPart::DepthPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         buildDepthBuffer(getCurrentExtent());
     }
 
@@ -992,7 +984,7 @@ namespace vkr::part {
         depthImageView = makeImageView(*depthImage, getDepthFormat(), vk::ImageAspectFlagBits::eDepth, 1);
     }
 
-    FramebufferPart::FramebufferPart() {
+    FramebufferPart::FramebufferPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         buildFramebuffers(getCurrentExtent());
     }
 
@@ -1025,8 +1017,8 @@ namespace vkr::part {
         }
     }
 
-    TexturePart::TexturePart() {
-        data::Texture& texture = getRenderer().getTexture();
+    TexturePart::TexturePart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
+        data::Texture& texture = getCreateInfo().texture;
         mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texture.getDimentions().x, texture.getDimentions().y)))) + 1;
 
 
@@ -1075,12 +1067,8 @@ namespace vkr::part {
         return *sampler;
     }
 
-    ModelDataPart::ModelDataPart() {
+    ModelDataPart::ModelDataPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         setVertexData(data::Model("models/room.obj"));
-    }
-
-    auto ModelDataPart::updateVertices() -> void {
-        copyBuffer(*vertexStagingBuffer, *vertexBuffer, vertexStagingBufferSpan.size_bytes());
     }
 
     ModelDataPart::~ModelDataPart() { 
@@ -1101,7 +1089,7 @@ namespace vkr::part {
 
             std::tie(vertexBuffer, vertexBufferMemory) = makeBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal);
 
-            updateVertices();
+            copyBuffer(*vertexStagingBuffer, *vertexBuffer, vertexStagingBufferSpan.size_bytes());
         }
         {
             vk::DeviceSize bufferSize = model.indices.size() * sizeof(model.indices[0]);
@@ -1129,7 +1117,7 @@ namespace vkr::part {
         return *indexBuffer;
     }
 
-    UniformBuffersPart::UniformBuffersPart() {
+    UniformBuffersPart::UniformBuffersPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         buildUniformBuffers();
     }
 
@@ -1152,7 +1140,7 @@ namespace vkr::part {
         return vk::uniqueToRaw(uniformBuffersMemory);
     }
 
-    DescriptorPoolPart::DescriptorPoolPart() {
+    DescriptorPoolPart::DescriptorPoolPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         buildDescriptorPool();
     }
 
@@ -1175,7 +1163,7 @@ namespace vkr::part {
         descriptorPool = getDevice().createDescriptorPoolUnique(descriptorPoolCreateInfo);
     }
 
-    DescriptorSetsPart::DescriptorSetsPart() {
+    DescriptorSetsPart::DescriptorSetsPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         buildDescriptorSets();
     }
 
@@ -1226,7 +1214,7 @@ namespace vkr::part {
         return descriptorSets;
     }
 
-    CommandBufferPart::CommandBufferPart() {
+    CommandBufferPart::CommandBufferPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         buildCommandBuffers(getCurrentExtent());
     }
 
@@ -1286,7 +1274,7 @@ namespace vkr::part {
         }
     }
 
-    LoopPart::LoopPart() {
+    LoopPart::LoopPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         imagesInFlight.resize(getSwapchainImageCount());
 
         vk::SemaphoreCreateInfo semaphoreInfo;
@@ -1340,10 +1328,9 @@ namespace vkr::part {
         {
             static auto last = static_cast<float>(glfw::glfwGetTime());
             float now = static_cast<float>(glfw::glfwGetTime());
-            getRenderer().onUpdate(now - last, now);
+            getCreateInfo().onUpdate(now - last, now);
             last = now;
 
-            const data::Camera& camera = getRenderer().getCamera();
             data::UBO ubo;
 
             glm::mat4 rotation = glm::eulerAngleXZ(camera.pitch, camera.yaw);
@@ -1429,7 +1416,13 @@ namespace vkr::part {
         rebuildIsNeeded = false;
     }
 
-    auto LastPart::start() -> void {
+    auto LoopPart::getCamera() -> data::Camera& {
+        return camera;
+    }
+
+    LastPart::LastPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {}
+
+    auto LastPart::runLoop() -> void {
         setVisible(true);
         while (!getClosed()) {
             poll();
@@ -1440,30 +1433,32 @@ namespace vkr::part {
 }
 
 namespace vkr::test {
-    Application::Application() {}
-
-    auto Application::getDebuggerMinimumLevel() -> api::DebuggerMinimunLevel {
-        return api::DebuggerMinimunLevel::eWarning;
+    Application::Application() : api::Renderer(std::move(rendererCreateInfo())) {
+        
     }
 
-    auto Application::getTexture() -> data::Texture& {
-        static data::Texture texture("textures/room.png");
-        return texture;
+    auto Application::rendererCreateInfo() -> api::RendererCreateInfo {
+        api::RendererCreateInfo info;
+        info.debuggerMinimumLevel = api::DebuggerMinimunLevel::eWarning;
+        info.deviceSelector = selectDevice;
+        info.maxAntialiasing = vk::SampleCountFlagBits::e1;
+        info.model = data::Model("models/room.obj");
+        info.texture = data::Texture("textures/room.png");
+        info.onUpdate = [&](float delta, float time) {
+            onUpdate(delta, time);
+        };
+        return info;
     }
 
-    auto Application::getCamera() -> const data::Camera& {
-        return camera;
-    }
-    
-    auto Application::selectPhysicalDevice(const std::vector<vk::PhysicalDeviceProperties>& physicalDeviceProperties) -> size_t {
+    auto Application::selectDevice(std::vector<vk::PhysicalDeviceProperties> deviceProperties) -> size_t {
         fmt::print("Please select a physical device:\n");
-        for (size_t i = 0; i < physicalDeviceProperties.size(); ++i) {
-            fmt::print("  {}. {}\n", i + 1, physicalDeviceProperties[i].deviceName);
+        for (size_t i = 0; i < deviceProperties.size(); ++i) {
+            fmt::print("  {}. {}\n", i + 1, deviceProperties[i].deviceName);
         }
         while (true) {
             try {
                 size_t index = std::stoull(io::console::read()) - 1;
-                if (index >= physicalDeviceProperties.size()) {
+                if (index >= deviceProperties.size()) {
                     throw std::out_of_range("");
                 }
                 return index;
@@ -1477,25 +1472,16 @@ namespace vkr::test {
         }
     }
 
-    auto Application::getMaxAntialiasing() -> vk::SampleCountFlagBits {
-        return vk::SampleCountFlagBits::e1;
-    }
-    
     auto Application::onUpdate(float delta, float time) -> void {
-        updateVertices();
-
         static float sum = 0.0f;
         sum += delta;
         if (sum >= 0.25f) {
             getWindow().setTitle(fmt::format("FPS: {}", static_cast<int>(1.0f / delta)));
             sum -= 0.25f;
         }
-
+        
         getWindow().on<io::event::MousePress>([&](auto e, bool& handled) {
             getWindow().setCursorInputMode(io::CursorInputMode::eInfinite);
-            if (e.button == io::Button::eRight) {
-                setVertexData(data::Model("models/room.obj"));
-            }
         });
 
         getWindow().on<io::event::KeyPress>([&](auto e, bool& handled) {
@@ -1514,24 +1500,24 @@ namespace vkr::test {
                 }
             }
         });
-
+    
         getWindow().on<io::event::MouseOffset>([&](auto e, bool& handled) {
             if (getWindow().getCursorInputMode() == io::CursorInputMode::eInfinite) {
-                camera.yaw += e.offset.x / 150.0f;
-                camera.pitch += e.offset.y / 150.0f;
-                camera.pitch = std::clamp(camera.pitch, -glm::pi<float>(), 0.0f);
+                getCamera().yaw += e.offset.x / 150.0f;
+                getCamera().pitch += e.offset.y / 150.0f;
+                getCamera().pitch = std::clamp(getCamera().pitch, -glm::pi<float>(), 0.0f);
             }
         });
-
-        camera.position += camera.getForward() * getWindow().getKeyboardScalar(io::Key::eW, io::Key::eS) * delta * 2.0f;
-        camera.position += camera.getLeft() * getWindow().getKeyboardScalar(io::Key::eA, io::Key::eD) * delta * 2.0f;
-        camera.position.z += getWindow().getKeyboardScalar(io::Key::eLeftShift, io::Key::eSpace) * delta * 2.0f;
+    
+        getCamera().position += getCamera().getForward() * getWindow().getKeyboardScalar(io::Key::eW, io::Key::eS) * delta * 2.0f;
+        getCamera().position += getCamera().getLeft() * getWindow().getKeyboardScalar(io::Key::eA, io::Key::eD) * delta * 2.0f;
+        getCamera().position.z += getWindow().getKeyboardScalar(io::Key::eLeftShift, io::Key::eSpace) * delta * 2.0f;
     }
 }
 
 int main() {
     try {
-        vkr::test::Application().start();
+        vkr::test::Application().runLoop();
     }
     catch (const std::exception& e) {
         spdlog::error(e.what());
