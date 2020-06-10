@@ -8,7 +8,7 @@ namespace vkr::api {
     }
     
     auto Renderer::getWindow() -> io::Window& {
-        return *static_cast<io::Window*>(this);
+        return getWindowHandle().getWindow();
     }
     
     auto Renderer::runLoop() -> void {
@@ -158,15 +158,19 @@ namespace vkr::part {
         return VK_FALSE;
     }
 
-    SurfacePart::SurfacePart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)), io::Window(getCreateInfo().windowCreateInfo) {
+    SurfacePart::SurfacePart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)), windowHandle(getCreateInfo().windowCreateInfo) {
         VkSurfaceKHR surface_;
-        glfw::glfwCreateWindowSurface((VkInstance)(getInstance()), getWindowPointer(), nullptr, &surface_);
+        glfw::glfwCreateWindowSurface((VkInstance)(getInstance()), windowHandle.getWindowGLFW(), nullptr, &surface_);
         vk::ObjectDestroy<vk::Instance, VULKAN_HPP_DEFAULT_DISPATCHER_TYPE> deleter(getInstance());
         surface = vk::UniqueSurfaceKHR(vk::SurfaceKHR(surface_), deleter);
     }
 
     auto SurfacePart::getSurface() -> vk::SurfaceKHR {
         return *surface;
+    }
+
+    auto SurfacePart::getWindowHandle() -> io::WindowHandle& {
+        return windowHandle;
     }
 
     PhysicalDevicePart::PhysicalDevicePart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
@@ -1287,13 +1291,13 @@ namespace vkr::part {
             fencesInFlight.push_back(getDevice().createFenceUnique(fenceInfo));
         }
 
-        setRefreshCallback([&]() {
+        getWindowHandle().onRefresh = [&]() {
             update();
-        });
+        };
 
-        setFramebufferResizeCallback([&]() {
+        getWindowHandle().onFramebufferResize = [&]() {
             rebuildIsNeeded = true;
-        });
+        };
     }
 
     auto LoopPart::update() -> void {
@@ -1423,9 +1427,9 @@ namespace vkr::part {
     LastPart::LastPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {}
 
     auto LastPart::runLoop() -> void {
-        setVisible(true);
-        while (!getClosed()) {
-            poll();
+        getWindowHandle().getWindow().show();
+        while (!getWindowHandle().getWindow().getClosed()) {
+            getWindowHandle().poll();
             update();
         }
         getDevice().waitIdle();
@@ -1448,7 +1452,6 @@ namespace vkr::test {
             onUpdate(delta, time);
         };
         info.windowCreateInfo.size = glm::ivec2(1980, 1080);
-        info.windowCreateInfo.visible = false;
         return info;
     }
 
@@ -1483,7 +1486,7 @@ namespace vkr::test {
         }
         
         getWindow().on<io::event::MousePress>([&](auto e, bool& handled) {
-            getWindow().setCursorInputMode(io::CursorInputMode::eInfinite);
+            getWindow().getMouse().setInputMode(io::CursorInputMode::eInfinite);
         });
 
         getWindow().on<io::event::KeyPress>([&](auto e, bool& handled) {
@@ -1494,8 +1497,8 @@ namespace vkr::test {
                 if (getWindow().getFullscreen()) {
                     getWindow().setFullscreen(false);
                 }
-                else if (getWindow().getCursorInputMode() == io::CursorInputMode::eInfinite) {
-                    getWindow().setCursorInputMode(io::CursorInputMode::eNormal);
+                else if (getWindow().getMouse().getInputMode() == io::CursorInputMode::eInfinite) {
+                    getWindow().getMouse().setInputMode(io::CursorInputMode::eNormal);
                 }
                 else {
                     getWindow().setClosed(true);
@@ -1504,16 +1507,16 @@ namespace vkr::test {
         });
     
         getWindow().on<io::event::MouseOffset>([&](auto e, bool& handled) {
-            if (getWindow().getCursorInputMode() == io::CursorInputMode::eInfinite) {
+            if (getWindow().getMouse().getInputMode() == io::CursorInputMode::eInfinite) {
                 getCamera().yaw += e.offset.x / 150.0f;
                 getCamera().pitch += e.offset.y / 150.0f;
                 getCamera().pitch = std::clamp(getCamera().pitch, -glm::pi<float>(), 0.0f);
             }
         });
     
-        getCamera().position += getCamera().getForward() * getWindow().getKeyboardScalar(io::Key::eW, io::Key::eS) * delta * 2.0f;
-        getCamera().position += getCamera().getLeft() * getWindow().getKeyboardScalar(io::Key::eA, io::Key::eD) * delta * 2.0f;
-        getCamera().position.z += getWindow().getKeyboardScalar(io::Key::eLeftShift, io::Key::eSpace) * delta * 2.0f;
+        getCamera().position += getCamera().getForward() * getWindow().getKeyboard().getKeyScalar(io::Key::eW, io::Key::eS) * delta * 2.0f;
+        getCamera().position += getCamera().getLeft() * getWindow().getKeyboard().getKeyScalar(io::Key::eA, io::Key::eD) * delta * 2.0f;
+        getCamera().position.z += getWindow().getKeyboard().getKeyScalar(io::Key::eLeftShift, io::Key::eSpace) * delta * 2.0f;
     }
 }
 

@@ -61,13 +61,15 @@ namespace vkr::part {
         vk::UniqueDebugUtilsMessengerEXT debugger;
     };
 
-    class SurfacePart : public InstancePart, public io::Window {
+    class SurfacePart : public InstancePart {
     public:
         using Base = InstancePart;
         SurfacePart(api::RendererCreateInfo&& rendererCreateInfo);
         auto getSurface() -> vk::SurfaceKHR;
+        auto getWindowHandle() -> io::WindowHandle&;
     private:
         vk::UniqueSurfaceKHR surface;
+        io::WindowHandle windowHandle;
     };
 
     class PhysicalDevicePart : public SurfacePart {

@@ -176,71 +176,83 @@ namespace vkr::io {
     struct WindowCreateInfo {
         glm::ivec2 size = glm::ivec2(640, 480);
         std::string title;
-        bool visible = true;
+    };
+
+    class Keyboard {
+    public:
+        auto getKeyPressed(Key key) -> bool;
+        auto getKeyScalar(Key positive, Key negative) -> float;
+        auto getKeyVector(Key positiveX, Key negativeX, Key positiveY, Key negativeY) -> glm::vec2;
+    private:
+        friend class Window;
+        Keyboard() = default;
+        glfw::GLFWwindow* windowGLFW;
+    };
+
+    class Mouse {
+    public:
+        auto getPosition() -> glm::dvec2;
+        auto setPosition(glm::dvec2 position) -> void;
+        auto getInputMode() -> CursorInputMode;
+        auto setInputMode(CursorInputMode mode) -> void;
+        auto getButtonPressed(Button button) -> bool;
+    private:
+        friend class Window;
+        Mouse() = default;
+        glfw::GLFWwindow* windowGLFW;
     };
 
     class Window {
-    private:
-        static auto framebufferResizeCallback(glfw::GLFWwindow* window, int width, int height) -> void;
-        static auto cursorPosCallback(glfw::GLFWwindow* window, double x, double y) -> void;
-        bool cursorPosSuppress = false;
-        static auto mouseButtonCallback(glfw::GLFWwindow* window, int button, int action, int mods) -> void;
-        static auto keyCallback(glfw::GLFWwindow* window, int key, int scancode, int action, int mods) -> void;
-        static auto windowRefreshCallback(glfw::GLFWwindow* window) -> void;
-        static auto windowSizeCallback(glfw::GLFWwindow* window, int width, int height) -> void;
-    protected:
-        Window(WindowCreateInfo info);
-        Window(const Window&) = delete;
     public:
-        auto getKeyboardScalar(io::Key positive, io::Key negative) -> float;
-        auto getKeyboardVector(io::Key positiveX, io::Key negativeX, io::Key positiveY, io::Key negativeY) -> glm::vec2;
-    public:
-        ~Window();
+        auto getKeyboard() -> Keyboard;
+        auto getMouse() -> Mouse;
+        auto getClosed() -> bool;
         auto setClosed(bool closed) -> void;
-        auto getKeyPressed(Key key) -> bool;
-        auto setCursorPos(glm::dvec2 position) -> void;
-        auto getCursorPos() -> glm::dvec2;
-        auto setCursorInputMode(CursorInputMode cursorMode) -> void;
-        auto getCursorInputMode() -> CursorInputMode;
-        auto getMouseButtonPressed(io::Button button) -> bool;
-        auto setFullscreen(bool fullscreen) -> void;
+        auto getDimentions() -> glm::ivec2;
+        auto setDimentions(glm::ivec2 dimentions) -> void;
+        auto getPosition() -> glm::ivec2;
+        auto setPosition(glm::ivec2 position) -> void;
         auto getFullscreen() -> bool;
-        auto getSize() -> glm::ivec2;
-        auto setSize(glm::ivec2 dimentions) -> void;
-        auto getPos() -> glm::ivec2;
-        auto setPos(glm::ivec2 position) -> void;
-        auto setVisible(bool visible) -> void;
-        auto setTitle(const std::string& title) -> void;
+        auto setFullscreen(bool fullscreen) -> void;
+        auto setTitle(std::string title) -> void;
+        auto hide() -> void;
+        auto show() -> void;
     public:
         template <class E>
         auto on(std::function<void(E e, bool& handled)> callback) {
-            if (events.count(typeid(E))) {
+            if (eventArena.count(typeid(E))) {
                 bool handled = false;
-                callback(std::any_cast<E>(events[typeid(E)]), handled);
+                callback(std::any_cast<E>(eventArena[typeid(E)]), handled);
                 if (handled) {
-                    events.erase(typeid(E));
+                    eventArena.erase(typeid(E));
                 }
             }
         }
-    protected:
-        template <class E>
-        auto fire(E e) -> void {
-            events[typeid(E)] = e;
-        }
-    protected:
+    private:
+        friend class WindowHandle;
+        Window() = default;
+
+        glfw::GLFWwindow* windowGLFW;
+        std::unordered_map<std::type_index, std::any> eventArena;
+    };
+
+    class WindowHandle {
+    public:
+        static auto getWindowHandle(glfw::GLFWwindow* window) -> WindowHandle&;
+        WindowHandle(WindowCreateInfo info);
+        WindowHandle(const WindowHandle&) = delete;
+        ~WindowHandle();
+        auto getWindow() -> Window&;
+        auto getWindowGLFW() -> glfw::GLFWwindow*;
         auto poll() -> void;
-        auto getWindowPointer() -> glfw::GLFWwindow*;
-        auto setRefreshCallback(std::function<void()> callback) -> void;
-        auto setFramebufferResizeCallback(std::function<void()> callback) -> void;
-        auto getClosed() const -> bool;
-    private:
-        static auto self(glfw::GLFWwindow* window) -> Window&;
-    private:
-        glfw::GLFWwindow* window;
-    private:
-        std::unordered_map<std::type_index, std::any> events;
-    private:
+        std::function<void()> onFramebufferResize = []() {};
         std::function<void()> onRefresh = []() {};
-        std::function<void()> rebuildForResize = []() {};
+    public:
+        template <class E>
+        auto fireEvent(E e) -> void {
+            window.eventArena[typeid(E)] = e;
+        }
+    private:
+        Window window;
     };
 }

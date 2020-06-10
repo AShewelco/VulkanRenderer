@@ -39,74 +39,11 @@ namespace vkr::io::file {
 }
 
 namespace vkr::io {
-    auto Window::framebufferResizeCallback(glfw::GLFWwindow* window, int width, int height) -> void {
-        self(window).rebuildForResize();
+    auto Keyboard::getKeyPressed(Key key) -> bool {
+        return glfw::glfwGetKey(windowGLFW, static_cast<int>(key)) == GLFW_PRESS;
     }
 
-    auto Window::cursorPosCallback(glfw::GLFWwindow* window, double x, double y) -> void {
-        static glm::dvec2 last(x, y);
-        glm::dvec2 current(x, y);
-        if (last == current) {
-            return;
-        }
-        if (!self(window).cursorPosSuppress) {
-            self(window).fire(event::MouseOffset { current - last });
-        }
-        else {
-            self(window).cursorPosSuppress = false;
-        }
-        last = current;
-    }
-
-    auto Window::mouseButtonCallback(glfw::GLFWwindow* window, int button, int action, int mods) -> void {
-        switch (action) {
-            case GLFW_PRESS:
-                self(window).fire(event::MousePress { static_cast<io::Button>(button) });
-                break;
-            case GLFW_RELEASE:
-                self(window).fire(event::MouseRelease { static_cast<io::Button>(button) });
-                break;
-        }
-    }
-
-    auto Window::keyCallback(glfw::GLFWwindow* window, int key, int scancode, int action, int mods) -> void {
-        switch (action) {
-            case GLFW_PRESS:
-                self(window).fire(event::KeyPress { static_cast<io::Key>(key) });
-                break;
-            case GLFW_RELEASE:
-                self(window).fire(event::KeyRelease { static_cast<io::Key>(key) });
-                break;
-        }
-    }
-
-    auto Window::windowRefreshCallback(glfw::GLFWwindow* window) -> void {
-        self(window).onRefresh();
-    }
-
-    auto Window::windowSizeCallback(glfw::GLFWwindow* window, int width, int height) -> void {
-        self(window).cursorPosSuppress = true;
-        self(window).fire(event::WindowResize { glm::ivec2(width, height) });
-    }
-
-    Window::Window(WindowCreateInfo info) {
-        glfw::glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfw::glfwWindowHint(GLFW_VISIBLE, info.visible);
-        window = glfw::glfwCreateWindow(info.size.x, info.size.y, info.title.c_str(), nullptr, nullptr);
-        if (!window) {
-            throw std::runtime_error("GLFW: Couldn't create window");
-        }
-        glfwSetWindowUserPointer(window, this);
-
-        glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
-        glfwSetCursorPosCallback(window, cursorPosCallback);
-        glfwSetMouseButtonCallback(window, mouseButtonCallback);
-        glfwSetKeyCallback(window, keyCallback);
-        glfwSetWindowRefreshCallback(window, windowRefreshCallback);
-        glfwSetWindowSizeCallback(window, windowSizeCallback);
-    }
-
-    auto Window::getKeyboardScalar(io::Key positive, io::Key negative) -> float {
+    auto Keyboard::getKeyScalar(Key positive, Key negative) -> float {
         float result = 0;
         if (getKeyPressed(positive)) {
             result += 1;
@@ -117,58 +54,80 @@ namespace vkr::io {
         return result;
     }
 
-    auto Window::getKeyboardVector(io::Key positiveX, io::Key negativeX, io::Key positiveY, io::Key negativeY) -> glm::vec2 {
-        return glm::vec2(getKeyboardScalar(positiveX, negativeX), getKeyboardScalar(positiveY, negativeY));
+    auto Keyboard::getKeyVector(Key positiveX, Key negativeX, Key positiveY, Key negativeY) -> glm::vec2 {
+        return glm::vec2(getKeyScalar(positiveX, negativeX), getKeyScalar(positiveY, negativeY));
     }
 
-    Window::~Window() {
-        glfwDestroyWindow(window);
-    }
-
-    auto Window::getClosed() const -> bool {
-        return glfwWindowShouldClose(window);
-    }
-
-    auto Window::setClosed(bool closed) -> void {
-        glfwSetWindowShouldClose(window, closed);
-    }
-
-    auto Window::getWindowPointer() -> glfw::GLFWwindow* {
-        return window;
-    }
-
-    auto Window::setRefreshCallback(std::function<void()> callback) -> void {
-        onRefresh = callback;
-    }
-
-    auto Window::setFramebufferResizeCallback(std::function<void()> callback) -> void {
-        rebuildForResize = callback;
-    }
-
-    auto Window::getKeyPressed(Key key) -> bool {
-        return glfwGetKey(window, static_cast<int>(key)) == GLFW_PRESS;
-    }
-
-    auto Window::setCursorPos(glm::dvec2 position) -> void {
-        glfwSetCursorPos(window, position.x, position.y);
-    }
-
-    auto Window::getCursorPos() -> glm::dvec2 {
+    auto Mouse::getPosition() -> glm::dvec2 {
         glm::dvec2 result;
-        glfwGetCursorPos(window, &result.x, &result.y);
+        glfw::glfwGetCursorPos(windowGLFW, &result.x, &result.y);
         return result;
     }
 
-    auto Window::setCursorInputMode(CursorInputMode cursorMode) -> void {
-        glfwSetInputMode(window, GLFW_CURSOR, static_cast<int>(cursorMode));
+    auto Mouse::setPosition(glm::dvec2 position) -> void {
+        glfw::glfwSetCursorPos(windowGLFW, position.x, position.y);
     }
 
-    auto Window::getCursorInputMode() -> CursorInputMode {
-        return static_cast<CursorInputMode>(glfwGetInputMode(window, GLFW_CURSOR));
+    auto Mouse::getInputMode() -> CursorInputMode {
+        return static_cast<CursorInputMode>(glfw::glfwGetInputMode(windowGLFW, GLFW_CURSOR));
     }
 
-    auto Window::getMouseButtonPressed(io::Button button) -> bool {
-        return glfwGetMouseButton(window, static_cast<int>(button)) == GLFW_PRESS;
+    auto Mouse::setInputMode(CursorInputMode mode) -> void {
+        glfw::glfwSetInputMode(windowGLFW, GLFW_CURSOR, static_cast<int>(mode));
+    }
+
+    auto Mouse::getButtonPressed(Button button) -> bool {
+        return glfw::glfwGetMouseButton(windowGLFW, static_cast<int>(button)) == GLFW_PRESS;
+    }
+
+    auto Window::getKeyboard() -> Keyboard {
+        Keyboard keyboard;
+        keyboard.windowGLFW = windowGLFW;
+        return keyboard;
+    }
+
+    auto Window::getMouse() -> Mouse {
+        Mouse mouse;
+        mouse.windowGLFW = windowGLFW;
+        return mouse;
+    }
+
+    auto Window::getClosed() -> bool {
+        return glfw::glfwWindowShouldClose(windowGLFW);
+    }
+
+    auto Window::setClosed(bool closed) -> void {
+        glfwSetWindowShouldClose(windowGLFW, closed);
+    }
+
+    auto Window::getDimentions() -> glm::ivec2 {
+        glm::ivec2 result;
+        glfw::glfwGetWindowSize(windowGLFW, &result.x, &result.y);
+        return result;
+    }
+
+    auto Window::setDimentions(glm::ivec2 dimentions) -> void {
+        if (dimentions == getDimentions()) {
+            return;
+        }
+        glfw::glfwSetWindowSize(windowGLFW, dimentions.x, dimentions.y);
+    }
+
+    auto Window::getPosition() -> glm::ivec2 {
+        glm::ivec2 result;
+        glfw::glfwGetWindowPos(windowGLFW, &result.x, &result.y);
+        return result;
+    }
+
+    auto Window::setPosition(glm::ivec2 position) -> void {
+        if (position == getPosition()) {
+            return;
+        }
+        glfw::glfwSetWindowPos(windowGLFW, position.x, position.y);
+    }
+
+    auto Window::getFullscreen() -> bool {
+        return glfw::glfwGetWindowMonitor(windowGLFW);
     }
 
     auto Window::setFullscreen(bool fullscreen) -> void {
@@ -176,71 +135,107 @@ namespace vkr::io {
             return;
         }
 
-        cursorPosSuppress = true;
-
         glfw::GLFWmonitor* monitor = glfw::glfwGetPrimaryMonitor();
         const glfw::GLFWvidmode* mode = glfw::glfwGetVideoMode(monitor);
 
-        static glm::ivec2 position = getPos();
-        static glm::ivec2 dimentions = getSize();
+        static glm::ivec2 position = getPosition();
+        static glm::ivec2 dimentions = getDimentions();
 
         if (fullscreen) {
-            position = getPos();
-            dimentions = getSize();
-            glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+            position = getPosition();
+            dimentions = getDimentions();
+            glfw::glfwSetWindowMonitor(windowGLFW, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
         }
         else {
-            glfwSetWindowMonitor(window, nullptr, position.x, position.y, dimentions.x, dimentions.y, mode->refreshRate);
+            glfw::glfwSetWindowMonitor(windowGLFW, nullptr, position.x, position.y, dimentions.x, dimentions.y, mode->refreshRate);
         }
     }
 
-    auto Window::getFullscreen() -> bool {
-        return glfwGetWindowMonitor(window);
+    auto Window::setTitle(std::string title) -> void {
+        glfw::glfwSetWindowTitle(windowGLFW, title.c_str());
     }
 
-    auto Window::getSize() -> glm::ivec2 {
-        glm::ivec2 result;
-        glfwGetWindowSize(window, &result.x, &result.y);
-        return result;
+    auto Window::hide() -> void {
+        glfw::glfwHideWindow(windowGLFW);
     }
 
-    auto Window::setSize(glm::ivec2 dimentions) -> void {
-        glfwSetWindowSize(window, dimentions.x, dimentions.y);
+    auto Window::show() -> void {
+        glfw::glfwShowWindow(windowGLFW);
     }
 
-    auto Window::getPos() -> glm::ivec2 {
-        glm::ivec2 result;
-        glfwGetWindowPos(window, &result.x, &result.y);
-        return result;
+    auto WindowHandle::getWindowHandle(glfw::GLFWwindow* window) -> WindowHandle& {
+        void* user = glfw::glfwGetWindowUserPointer(window);
+        return *reinterpret_cast<WindowHandle*>(user);
     }
+    
+    WindowHandle::WindowHandle(WindowCreateInfo info) {
+        glfw::glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+        glfw::glfwWindowHint(GLFW_VISIBLE, false);
 
-    auto Window::setPos(glm::ivec2 position) -> void {
-        if (getPos() == position) {
-            return;
+        window.windowGLFW = glfw::glfwCreateWindow(info.size.x, info.size.y, info.title.c_str(), nullptr, nullptr);
+        if (!window.windowGLFW) {
+            throw std::runtime_error("GLFW: Couldn't create window");
         }
-        cursorPosSuppress = true;
-        glfwSetWindowPos(window, position.x, position.y);
+        glfwSetWindowUserPointer(window.windowGLFW, this);
+
+        glfw::glfwSetFramebufferSizeCallback(window.windowGLFW, [](glfw::GLFWwindow* window, int, int) {
+            getWindowHandle(window).onFramebufferResize();
+        });
+
+        glfw::glfwSetWindowRefreshCallback(window.windowGLFW, [](glfw::GLFWwindow* window) {
+            getWindowHandle(window).onRefresh();
+        });
+
+        glfw::glfwSetCursorPosCallback(window.windowGLFW, [](glfw::GLFWwindow* window, double x, double y) {
+            static glm::dvec2 last(x, y);
+            glm::dvec2 current(x, y);
+           
+            getWindowHandle(window).fireEvent(event::MouseOffset { current - last });
+            
+            last = current;
+        });
+
+        glfw::glfwSetMouseButtonCallback(window.windowGLFW, [](glfw::GLFWwindow* window, int button, int action, int mods) {
+            switch (action) {
+                case GLFW_PRESS:
+                    getWindowHandle(window).fireEvent(event::MousePress { static_cast<io::Button>(button) });
+                    break;
+                case GLFW_RELEASE:
+                    getWindowHandle(window).fireEvent(event::MouseRelease { static_cast<io::Button>(button) });
+                    break;
+            }
+        });
+
+        glfw::glfwSetKeyCallback(window.windowGLFW, [](glfw::GLFWwindow * window, int key, int scancode, int action, int mods) {
+            switch (action) {
+                case GLFW_PRESS:
+                    getWindowHandle(window).fireEvent(event::KeyPress { static_cast<io::Key>(key) });
+                    break;
+                case GLFW_RELEASE:
+                    getWindowHandle(window).fireEvent(event::KeyRelease { static_cast<io::Key>(key) });
+                    break;
+            }
+        });
+
+        glfw::glfwSetWindowSizeCallback(window.windowGLFW, [](glfw::GLFWwindow* window, int width, int height) -> void {
+            getWindowHandle(window).fireEvent(event::WindowResize { glm::ivec2(width, height) });
+        });
     }
 
-    auto Window::setVisible(bool visible) -> void {
-        if (visible) {
-            glfwShowWindow(window);
-        }
-        else {
-            glfwHideWindow(window);
-        }
+    WindowHandle::~WindowHandle() {
+        glfw::glfwDestroyWindow(window.windowGLFW);
     }
 
-    auto Window::setTitle(const std::string& title) -> void {
-        glfwSetWindowTitle(window, title.c_str());
+    auto WindowHandle::getWindow() -> Window& {
+        return window;
     }
 
-    auto Window::poll() -> void {
-        events.clear();
+    auto WindowHandle::getWindowGLFW() -> glfw::GLFWwindow* {
+        return window.windowGLFW;
+    }
+
+    auto WindowHandle::poll() -> void {
+        window.eventArena.clear();
         glfw::glfwPollEvents();
-    }
-
-    auto Window::self(glfw::GLFWwindow* window) -> Window& {
-        return *reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
     }
 }
