@@ -23,6 +23,7 @@ namespace vkr::api {
             return 0;
         };
         std::function<void(float delta, float time)> onUpdate = [](float, float) {};
+        io::WindowCreateInfo windowCreateInfo;
     };
 
     class Renderer;

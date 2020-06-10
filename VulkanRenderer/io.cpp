@@ -89,10 +89,10 @@ namespace vkr::io {
         self(window).fire(event::WindowResize { glm::ivec2(width, height) });
     }
 
-    Window::Window(const char* title, glm::ivec2 size, bool visible) {
+    Window::Window(WindowCreateInfo info) {
         glfw::glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfw::glfwWindowHint(GLFW_VISIBLE, visible);
-        window = glfw::glfwCreateWindow(size.x, size.y, title, nullptr, nullptr);
+        glfw::glfwWindowHint(GLFW_VISIBLE, info.visible);
+        window = glfw::glfwCreateWindow(info.size.x, info.size.y, info.title.c_str(), nullptr, nullptr);
         if (!window) {
             throw std::runtime_error("GLFW: Couldn't create window");
         }

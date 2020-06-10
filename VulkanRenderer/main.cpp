@@ -158,7 +158,7 @@ namespace vkr::part {
         return VK_FALSE;
     }
 
-    SurfacePart::SurfacePart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)), io::Window("", glm::ivec2(640, 480), false) {
+    SurfacePart::SurfacePart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)), io::Window(getCreateInfo().windowCreateInfo) {
         VkSurfaceKHR surface_;
         glfw::glfwCreateWindowSurface((VkInstance)(getInstance()), getWindowPointer(), nullptr, &surface_);
         vk::ObjectDestroy<vk::Instance, VULKAN_HPP_DEFAULT_DISPATCHER_TYPE> deleter(getInstance());
@@ -1447,6 +1447,8 @@ namespace vkr::test {
         info.onUpdate = [&](float delta, float time) {
             onUpdate(delta, time);
         };
+        info.windowCreateInfo.size = glm::ivec2(1980, 1080);
+        info.windowCreateInfo.visible = false;
         return info;
     }
 

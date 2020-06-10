@@ -169,10 +169,16 @@ namespace vkr::io::console {
 
 namespace vkr::io::file {
     template <class T>
-    auto read(const char* file)->std::vector<T>;
+    auto read(const char* file) -> std::vector<T>;
 }
 
 namespace vkr::io {
+    struct WindowCreateInfo {
+        glm::ivec2 size = glm::ivec2(640, 480);
+        std::string title;
+        bool visible = true;
+    };
+
     class Window {
     private:
         static auto framebufferResizeCallback(glfw::GLFWwindow* window, int width, int height) -> void;
@@ -183,7 +189,7 @@ namespace vkr::io {
         static auto windowRefreshCallback(glfw::GLFWwindow* window) -> void;
         static auto windowSizeCallback(glfw::GLFWwindow* window, int width, int height) -> void;
     protected:
-        Window(const char* title, glm::ivec2 size, bool visible);
+        Window(WindowCreateInfo info);
         Window(const Window&) = delete;
     public:
         auto getKeyboardScalar(io::Key positive, io::Key negative) -> float;
