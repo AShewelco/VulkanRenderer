@@ -15,9 +15,9 @@ namespace vkr::data {
     };
 
     struct Camera {
-        auto getDirection()->glm::vec3;
-        auto getForward()->glm::vec3;
-        auto getLeft()->glm::vec3;
+        auto getDirection() -> glm::vec3;
+        auto getForward() -> glm::vec3;
+        auto getLeft() -> glm::vec3;
 
         float fov = glm::radians(90.0f);
         glm::vec3 position = glm::vec3(0.0f, 0.0f, -1.0f);

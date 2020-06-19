@@ -12,7 +12,7 @@ namespace vkr::part {
         BeginPart(api::RendererCreateInfo&& rendererCreateInfo);
         BeginPart(const BeginPart&) = delete;
         ~BeginPart();
-        auto getCreateInfo()->api::RendererCreateInfo&;
+        auto getCreateInfo() -> api::RendererCreateInfo&;
     private:
         api::RendererCreateInfo rendererCreateInfo;
     };
@@ -21,7 +21,7 @@ namespace vkr::part {
     public:
         using Base = BeginPart;
         InstancePart(api::RendererCreateInfo&& rendererCreateInfo);
-        auto getInstance()->vk::Instance;
+        auto getInstance() -> vk::Instance;
         auto getInstanceExtentions() -> const std::vector<const char*>&;
         auto getInstanceLayers() -> const std::vector<const char*>&;
     private:
@@ -42,8 +42,8 @@ namespace vkr::part {
     public:
         using Base = InstancePart;
         SurfacePart(api::RendererCreateInfo&& rendererCreateInfo);
-        auto getSurface()->vk::SurfaceKHR;
-        auto getWindowHandle()->io::WindowHandle&;
+        auto getSurface() -> vk::SurfaceKHR;
+        auto getWindowHandle() -> io::WindowHandle&;
     private:
         vk::UniqueSurfaceKHR surface;
         io::WindowHandle windowHandle;
@@ -56,8 +56,8 @@ namespace vkr::part {
         auto getPhysicalDevice() -> const vk::PhysicalDevice&;
         auto getPhysicalDeviceExtentions() -> const std::vector<const char*>&;
         auto getQueueFamilyIndices() -> const std::array<uint32_t, 2>&;
-        auto getGraphicsQueueFamilyIndex()->uint32_t;
-        auto getPresentQueueFamilyIndex()->uint32_t;
+        auto getGraphicsQueueFamilyIndex() -> uint32_t;
+        auto getPresentQueueFamilyIndex() -> uint32_t;
     private:
         vk::PhysicalDevice device;
         std::vector<const char*> extentions;
@@ -70,10 +70,10 @@ namespace vkr::part {
         PhysicalDeviceDataPart(api::RendererCreateInfo&& rendererCreateInfo);
         auto getSurfaceFormats() -> const std::vector<vk::SurfaceFormatKHR>&;
         auto getSurfacePresentModes() -> const std::vector<vk::PresentModeKHR>&;
-        auto getDepthFormat()->vk::Format;
-        auto getMsaaSamples()->vk::SampleCountFlagBits;
-        auto getCurrentExtent()->vk::Extent2D;
-        auto getMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties)->uint32_t;
+        auto getDepthFormat() -> vk::Format;
+        auto getMsaaSamples() -> vk::SampleCountFlagBits;
+        auto getCurrentExtent() -> vk::Extent2D;
+        auto getMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) -> uint32_t;
     private:
         std::vector<vk::SurfaceFormatKHR> surfaceFormats;
         std::vector<vk::PresentModeKHR> surfacePresentModes;
@@ -85,12 +85,12 @@ namespace vkr::part {
     public:
         using Base = PhysicalDeviceDataPart;
         DevicePart(api::RendererCreateInfo&& rendererCreateInfo);
-        auto getDevice()->vk::Device;
-        auto getGraphicsQueue()->vk::Queue;
-        auto getPresentQueue()->vk::Queue;
-        auto makeBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties)->std::tuple<vk::UniqueBuffer, vk::UniqueDeviceMemory>;
-        auto makeImage(glm::uvec2 size, uint32_t mipLevels, vk::SampleCountFlagBits sampleCount, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties)->std::tuple<vk::UniqueImage, vk::UniqueDeviceMemory>;
-        auto makeImageView(vk::Image image, vk::Format format, vk::ImageAspectFlagBits aspectFlags, uint32_t mipLevels)->vk::UniqueImageView;
+        auto getDevice() -> vk::Device;
+        auto getGraphicsQueue() -> vk::Queue;
+        auto getPresentQueue() -> vk::Queue;
+        auto makeBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties) -> std::tuple<vk::UniqueBuffer, vk::UniqueDeviceMemory>;
+        auto makeImage(glm::uvec2 size, uint32_t mipLevels, vk::SampleCountFlagBits sampleCount, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties) -> std::tuple<vk::UniqueImage, vk::UniqueDeviceMemory>;
+        auto makeImageView(vk::Image image, vk::Format format, vk::ImageAspectFlagBits aspectFlags, uint32_t mipLevels) -> vk::UniqueImageView;
     private:
         vk::UniqueDevice device;
     };
@@ -99,8 +99,8 @@ namespace vkr::part {
     public:
         using Base = DevicePart;
         SwapchainPart(api::RendererCreateInfo&& rendererCreateInfo);
-        auto getSwapchain()->vk::SwapchainKHR;
-        auto getSwapchainFormat()->vk::Format;
+        auto getSwapchain() -> vk::SwapchainKHR;
+        auto getSwapchainFormat() -> vk::Format;
     public:
         auto buildSwapchain(vk::Extent2D extent) -> void;
     private:
@@ -112,8 +112,8 @@ namespace vkr::part {
     public:
         using Base = SwapchainPart;
         ImagesPart(api::RendererCreateInfo&& rendererCreateInfo);
-        auto getSwapchainImageViews()->std::vector<vk::ImageView>;
-        auto getSwapchainImageCount()->size_t;
+        auto getSwapchainImageViews() -> std::vector<vk::ImageView>;
+        auto getSwapchainImageCount() -> size_t;
     public:
         auto buildImages(vk::Extent2D extent) -> void;
     private:
@@ -125,7 +125,7 @@ namespace vkr::part {
     public:
         using Base = ImagesPart;
         RenderPassPart(api::RendererCreateInfo&& rendererCreateInfo);
-        auto getRenderPass()->vk::RenderPass;
+        auto getRenderPass() -> vk::RenderPass;
     private:
         vk::UniqueRenderPass renderPass;
     };
@@ -134,7 +134,7 @@ namespace vkr::part {
     public:
         using Base = RenderPassPart;
         DescriptorSetLayoutPart(api::RendererCreateInfo&& rendererCreateInfo);
-        auto getDescriptorSetLayout()->vk::DescriptorSetLayout;
+        auto getDescriptorSetLayout() -> vk::DescriptorSetLayout;
     private:
         vk::UniqueDescriptorSetLayout descriptorSetLayout;
     };
@@ -143,8 +143,8 @@ namespace vkr::part {
     public:
         using Base = DescriptorSetLayoutPart;
         GraphicsPipelinePart(api::RendererCreateInfo&& rendererCreateInfo);
-        auto getGraphicsPipeline()->vk::Pipeline;
-        auto getGraphicsPipelineLayout()->vk::PipelineLayout;
+        auto getGraphicsPipeline() -> vk::Pipeline;
+        auto getGraphicsPipelineLayout() -> vk::PipelineLayout;
     public:
         auto buildGraphicsPipeline(vk::Extent2D extent) -> void;
     private:
@@ -156,7 +156,7 @@ namespace vkr::part {
     public:
         using Base = GraphicsPipelinePart;
         CommandPoolPart(api::RendererCreateInfo&& rendererCreateInfo);
-        auto getCommandPool()->vk::CommandPool;
+        auto getCommandPool() -> vk::CommandPool;
         auto copyBuffer(vk::Buffer from, vk::Buffer to, vk::DeviceSize size) -> void;
         auto transitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout, uint32_t mipLevels) -> void;
         auto copyBufferToImage(vk::Buffer buffer, vk::Image image, glm::uvec2 size) -> void;
@@ -192,7 +192,7 @@ namespace vkr::part {
     public:
         using Base = CommandPoolPart;
         ColorResourcesPart(api::RendererCreateInfo&& rendererCreateInfo);
-        auto getColorImageView()->vk::ImageView;
+        auto getColorImageView() -> vk::ImageView;
     public:
         auto buildColorResources(vk::Extent2D extent) -> void;
     private:
@@ -205,7 +205,7 @@ namespace vkr::part {
     public:
         using Base = ColorResourcesPart;
         DepthPart(api::RendererCreateInfo&& rendererCreateInfo);
-        auto getDepthImageView()->vk::ImageView;
+        auto getDepthImageView() -> vk::ImageView;
     public:
         auto buildDepthBuffer(vk::Extent2D extent) -> void;
     private:
@@ -218,7 +218,7 @@ namespace vkr::part {
     public:
         using Base = DepthPart;
         FramebufferPart(api::RendererCreateInfo&& rendererCreateInfo);
-        auto getFramebuffers()->std::vector<vk::Framebuffer>;
+        auto getFramebuffers() -> std::vector<vk::Framebuffer>;
     public:
         auto buildFramebuffers(vk::Extent2D extent) -> void;
     private:
@@ -244,13 +244,15 @@ namespace vkr::part {
         using Base = TexturePart;
         ModelDataPart(api::RendererCreateInfo&& rendererCreateInfo);
         ~ModelDataPart();
-        auto setVertexData(const data::Model& data) -> void;
+        auto pushModel(const data::Model& data) -> void;
         auto getVertexBuffer() -> const vk::Buffer&;
-        auto getIndexCount()->size_t;
+        auto getIndexCount() -> size_t;
         auto getIndexBuffer() -> const vk::Buffer&;
+        auto getVertexSpan() -> std::span<data::Vertex>;
+        auto updateStagingBuffer() -> void;
     private:
         data::Model model;
-        std::span<data::Vertex> vertexStagingBufferSpan;
+        std::span<data::Vertex> vertexSpan;
         vk::UniqueBuffer vertexStagingBuffer;
         vk::UniqueDeviceMemory vertexStagingBufferMemory;
         vk::UniqueBuffer vertexBuffer;
@@ -263,8 +265,8 @@ namespace vkr::part {
     public:
         using Base = ModelDataPart;
         UniformBuffersPart(api::RendererCreateInfo&& rendererCreateInfo);
-        auto getUniformBuffers()->std::vector<vk::Buffer>;
-        auto getUniformBuffersMemory()->std::vector<vk::DeviceMemory>;
+        auto getUniformBuffers() -> std::vector<vk::Buffer>;
+        auto getUniformBuffersMemory() -> std::vector<vk::DeviceMemory>;
     public:
         auto buildUniformBuffers() -> void;
     private:
@@ -294,35 +296,26 @@ namespace vkr::part {
         std::vector<vk::DescriptorSet> descriptorSets;
     };
 
-    class CommandBufferPart : public DescriptorSetsPart {
+    class LoopPart : public DescriptorSetsPart {
     public:
         using Base = DescriptorSetsPart;
-        CommandBufferPart(api::RendererCreateInfo&& rendererCreateInfo);
-        auto getCommandBuffers()->std::vector<vk::CommandBuffer>;
-    public:
-        auto buildCommandBuffers(vk::Extent2D extent) -> void;
-    private:
-        std::vector<vk::UniqueCommandBuffer> commandBuffers;
-    };
-
-    class LoopPart : public CommandBufferPart {
-    public:
-        using Base = CommandBufferPart;
         LoopPart(api::RendererCreateInfo&& rendererCreateInfo);
         auto update() -> void;
         auto rebuildForResize() -> void;
     public:
-        auto getCamera()->data::Camera&;
+        auto getCamera() -> data::Camera&;
     private:
         bool rebuildIsNeeded = false;
         double lastRebuild = 0.0;
         uint32_t maxFramesInFlight = 2;
         uint32_t currentFrame = 0;
+        std::vector<vk::UniqueCommandBuffer> commandBuffers;
         std::vector<vk::UniqueSemaphore> imageAvailableSemaphores;
         std::vector<vk::UniqueSemaphore> renderFinishedSemaphores;
         std::vector<vk::UniqueFence> fencesInFlight;
         std::vector<vk::Fence> imagesInFlight;
         data::Camera camera;
+        vk::Extent2D framebufferExtent;
     };
 
     class LastPart : public LoopPart {

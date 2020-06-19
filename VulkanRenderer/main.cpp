@@ -2,6 +2,15 @@
 
 namespace vkr::api {
     Renderer::Renderer(api::RendererCreateInfo&& rendererCreateInfo) : part::LastPart(std::move(rendererCreateInfo)) {}
+
+    auto Renderer::pushModel(const data::Model& model) -> void {
+        getDevice().waitIdle();
+        LastPart::pushModel(model);
+    }
+
+    auto Renderer::getVertexSpan() -> std::span<data::Vertex> {
+        return LastPart::getVertexSpan();
+    }
     
     auto Renderer::getCamera() -> data::Camera& {
         return LastPart::getCamera();
@@ -23,7 +32,7 @@ namespace vkr::test {
         api::RendererCreateInfo info;
         info.debuggerMinimumLevel = api::DebuggerMinimunLevel::eWarning;
         info.deviceSelector = selectDevice;
-        info.maxAntialiasing = vk::SampleCountFlagBits::e1;
+        info.maxAntialiasing = vk::SampleCountFlagBits::e64;
         info.model = data::Model("models/room.obj");
         info.texture = data::Texture("textures/room.png");
         info.onUpdate = [&](float delta, float time) {
@@ -64,7 +73,20 @@ namespace vkr::test {
         }
         
         getWindow().on<io::event::MousePress>([&](auto e, bool& handled) {
-            getWindow().getMouse().setInputMode(io::CursorInputMode::eInfinite);
+            if (getWindow().getMouse().getInputMode() != io::CursorInputMode::eInfinite) {
+                getWindow().getMouse().setInputMode(io::CursorInputMode::eInfinite);
+            }
+            else {
+                data::Model roomRelative = room;
+                for (auto& vertex : roomRelative.vertices) {
+                    vertex.position += (getCamera().position + getCamera().getDirection() * 2.0f) * glm::vec3(-1.0f, 1.0f, -1.0f);
+                }
+                pushModel(roomRelative);
+                View view;
+                view.start = getVertexSpan().size() - roomRelative.vertices.size();
+                view.count = roomRelative.vertices.size();
+                models.push_back(view);
+            }
         });
 
         getWindow().on<io::event::KeyPress>([&](auto e, bool& handled) {
@@ -95,6 +117,25 @@ namespace vkr::test {
         getCamera().position += getCamera().getForward() * getWindow().getKeyboard().getKeyScalar(io::Key::eW, io::Key::eS) * delta * 2.0f;
         getCamera().position += getCamera().getLeft() * getWindow().getKeyboard().getKeyScalar(io::Key::eA, io::Key::eD) * delta * 2.0f;
         getCamera().position.z += getWindow().getKeyboard().getKeyScalar(io::Key::eLeftShift, io::Key::eSpace) * delta * 2.0f;
+
+        try {
+            size_t index = 0;
+            for (View model : models) {
+                glm::vec3 center(0.0f);
+                for (data::Vertex& vertex : getVertexSpan().subspan(model.start, model.count)) {
+                    center += vertex.position;
+                }
+                center /= static_cast<float>(model.count);
+                
+                for (data::Vertex& vertex : getVertexSpan().subspan(model.start, model.count)) {
+                    vertex.position -= center;
+                    vertex.position = glm::rotateZ(vertex.position, delta);
+                    vertex.position += center;
+                }
+            }
+            index++;
+        }
+        catch (...) {}
     }
 }
 

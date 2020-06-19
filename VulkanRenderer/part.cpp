@@ -1056,28 +1056,34 @@ namespace vkr::part {
     }
 
     ModelDataPart::ModelDataPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
-        setVertexData(data::Model("models/room.obj"));
+        pushModel(data::Model("models/room.obj"));
     }
 
     ModelDataPart::~ModelDataPart() {
         getDevice().unmapMemory(*vertexStagingBufferMemory);
     }
 
-    auto ModelDataPart::setVertexData(const data::Model& data) -> void {
+    auto ModelDataPart::pushModel(const data::Model& data) -> void {
         {
-            model = data;
-
+            std::copy(vertexSpan.begin(), vertexSpan.end(), model.vertices.begin());
+            model.indices.reserve(model.indices.size() + data.indices.size());
+            for (uint32_t index : data.indices) {
+                model.indices.push_back(index + static_cast<uint32_t>(model.vertices.size()));
+            }
+            model.vertices.insert(model.vertices.end(), data.vertices.begin(), data.vertices.end());
+        }
+        {
             vk::DeviceSize bufferSize = model.vertices.size() * sizeof(model.vertices[0]);
 
             std::tie(vertexStagingBuffer, vertexStagingBufferMemory) = makeBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 
             void* data = getDevice().mapMemory(*vertexStagingBufferMemory, 0, bufferSize);
             memcpy(data, model.vertices.data(), static_cast<size_t>(bufferSize));
-            vertexStagingBufferSpan = std::span<data::Vertex>(static_cast<data::Vertex*>(data), model.vertices.size());
+            vertexSpan = std::span<data::Vertex>(static_cast<data::Vertex*>(data), model.vertices.size());
 
             std::tie(vertexBuffer, vertexBufferMemory) = makeBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal);
 
-            copyBuffer(*vertexStagingBuffer, *vertexBuffer, vertexStagingBufferSpan.size_bytes());
+            copyBuffer(*vertexStagingBuffer, *vertexBuffer, vertexSpan.size_bytes());
         }
         {
             vk::DeviceSize bufferSize = model.indices.size() * sizeof(model.indices[0]);
@@ -1103,6 +1109,15 @@ namespace vkr::part {
 
     auto ModelDataPart::getIndexBuffer() -> const vk::Buffer& {
         return *indexBuffer;
+    }
+
+    auto ModelDataPart::getVertexSpan() -> std::span<data::Vertex> {
+        return std::span<data::Vertex>(model.vertices);
+    }
+
+    auto ModelDataPart::updateStagingBuffer() -> void {
+        std::copy(model.vertices.begin(), model.vertices.end(), vertexSpan.begin());
+        copyBuffer(*vertexStagingBuffer, *vertexBuffer, vertexSpan.size_bytes());
     }
 
     UniformBuffersPart::UniformBuffersPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
@@ -1202,66 +1217,6 @@ namespace vkr::part {
         return descriptorSets;
     }
 
-    CommandBufferPart::CommandBufferPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
-        buildCommandBuffers(getCurrentExtent());
-    }
-
-    auto CommandBufferPart::getCommandBuffers() -> std::vector<vk::CommandBuffer> {
-        return vk::uniqueToRaw(commandBuffers);
-    }
-
-    auto CommandBufferPart::buildCommandBuffers(vk::Extent2D extent) -> void {
-        commandBuffers.clear();
-
-        std::vector<vk::Framebuffer> framebuffers = getFramebuffers();
-
-        vk::CommandBufferAllocateInfo allocateInfo;
-        allocateInfo.commandPool = getCommandPool();
-        allocateInfo.level = vk::CommandBufferLevel::ePrimary;
-        allocateInfo.commandBufferCount = (uint32_t)(framebuffers.size());
-
-        commandBuffers = getDevice().allocateCommandBuffersUnique(allocateInfo);
-
-        size_t index = 0;
-        for (const vk::UniqueCommandBuffer& commandBuffer : commandBuffers) {
-            vk::CommandBufferBeginInfo beginInfo;
-            commandBuffer->begin(beginInfo);
-
-            vk::RenderPassBeginInfo renderPassInfo;
-            renderPassInfo.renderPass = getRenderPass();
-            renderPassInfo.framebuffer = framebuffers[index];
-            renderPassInfo.renderArea.offset.x = 0;
-            renderPassInfo.renderArea.offset.y = 0;
-            renderPassInfo.renderArea.extent = extent;
-            std::array<vk::ClearValue, 2> clearValues;
-            clearValues[0].color.setFloat32({ 0.01f, 0.01f, 0.01f, 1.0f });
-            clearValues[1].depthStencil.setDepth(1.0f).setStencil(0);
-
-            renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-            renderPassInfo.pClearValues = clearValues.data();
-
-            commandBuffer->beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-            {
-                commandBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics, getGraphicsPipeline());
-
-                std::array vertexBuffers = { getVertexBuffer() };
-                std::array offsets = { (vk::DeviceSize)(0) };
-                commandBuffer->bindVertexBuffers(0, vertexBuffers, offsets);
-
-                commandBuffer->bindIndexBuffer(getIndexBuffer(), 0, vk::IndexType::eUint32);
-
-                commandBuffer->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, getGraphicsPipelineLayout(), 0, 1, &getDescriptorSets()[index], 0, nullptr);
-
-                commandBuffer->drawIndexed(static_cast<uint32_t>(getIndexCount()), 1, 0, 0, 0);
-            }
-            commandBuffer->endRenderPass();
-
-            commandBuffer->end();
-
-            ++index;
-        }
-    }
-
     LoopPart::LoopPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
         imagesInFlight.resize(getSwapchainImageCount());
 
@@ -1275,6 +1230,10 @@ namespace vkr::part {
             fencesInFlight.push_back(getDevice().createFenceUnique(fenceInfo));
         }
 
+        commandBuffers.resize(maxFramesInFlight);
+
+        framebufferExtent = getCurrentExtent();
+
         getWindowHandle().onRefresh = [&]() {
             update();
         };
@@ -1285,10 +1244,11 @@ namespace vkr::part {
     }
 
     auto LoopPart::update() -> void {
-        vk::Extent2D extent = getCurrentExtent();
-        if (extent.width == 0 || extent.height == 0) {
+        vk::Extent2D currentExtent = getCurrentExtent();
+        if (currentExtent.width == 0 || currentExtent.height == 0) {
             return;
         }
+
         getDevice().waitForFences(*fencesInFlight[static_cast<size_t>(currentFrame)], true, std::numeric_limits<uint64_t>::max());
 
         if (rebuildIsNeeded) {
@@ -1319,12 +1279,14 @@ namespace vkr::part {
             getCreateInfo().onUpdate(now - last, now);
             last = now;
 
+            updateStagingBuffer();
+
             data::UBO ubo;
 
             glm::mat4 rotation = glm::eulerAngleXZ(camera.pitch, camera.yaw);
 
             ubo.view = rotation * glm::translate(glm::mat4(1.0f), camera.position * glm::vec3(1.0f, -1.0f, 1.0f));
-            ubo.projection = glm::perspective(camera.fov, static_cast<float>(extent.width) / static_cast<float>(extent.height), 0.01f, 1000.0f);
+            ubo.projection = glm::perspective(camera.fov, static_cast<float>(currentExtent.width) / static_cast<float>(currentExtent.height), 0.01f, 1000.0f);
 
             void* data = getDevice().mapMemory(getUniformBuffersMemory()[static_cast<size_t>(imageIndex)], 0, sizeof(data::UBO));
             memcpy(data, &ubo, sizeof(data::UBO));
@@ -1348,12 +1310,52 @@ namespace vkr::part {
 
         submitInfo.commandBufferCount = 1;
 
-        vk::CommandBuffer commandBuffer = getCommandBuffers()[static_cast<size_t>(imageIndex)];
+        {
+            vk::CommandBufferAllocateInfo allocateInfo;
+            allocateInfo.commandPool = getCommandPool();
+            allocateInfo.level = vk::CommandBufferLevel::ePrimary;
+            allocateInfo.commandBufferCount = 1;
 
-        submitInfo.pCommandBuffers = &commandBuffer;
+            commandBuffers[imageIndex] = std::move(getDevice().allocateCommandBuffersUnique(allocateInfo)[0]);
+
+            vk::CommandBufferBeginInfo beginInfo;
+            beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+            commandBuffers[imageIndex]->begin(beginInfo);
+
+            vk::RenderPassBeginInfo renderPassInfo;
+            renderPassInfo.renderPass = getRenderPass();
+            renderPassInfo.framebuffer = getFramebuffers()[imageIndex];
+            renderPassInfo.renderArea.offset.x = 0;
+            renderPassInfo.renderArea.offset.y = 0;
+            renderPassInfo.renderArea.extent = framebufferExtent;
+            std::array<vk::ClearValue, 2> clearValues;
+            clearValues[0].color.setFloat32({ 0.01f, 0.01f, 0.01f, 1.0f });
+            clearValues[1].depthStencil.setDepth(1.0f).setStencil(0);
+
+            renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+            renderPassInfo.pClearValues = clearValues.data();
+
+            commandBuffers[imageIndex]->beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+            {
+                commandBuffers[imageIndex]->bindPipeline(vk::PipelineBindPoint::eGraphics, getGraphicsPipeline());
+
+                commandBuffers[imageIndex]->bindVertexBuffers(0, getVertexBuffer(), static_cast<vk::DeviceSize>(0));
+
+                commandBuffers[imageIndex]->bindIndexBuffer(getIndexBuffer(), 0, vk::IndexType::eUint32);
+
+                commandBuffers[imageIndex]->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, getGraphicsPipelineLayout(), 0, 1, &getDescriptorSets()[imageIndex], 0, nullptr);
+
+                commandBuffers[imageIndex]->drawIndexed(static_cast<uint32_t>(getIndexCount()), 1, 0, 0, 0);
+            }
+            commandBuffers[imageIndex]->endRenderPass();
+
+            commandBuffers[imageIndex]->end();
+        }
+
+        submitInfo.pCommandBuffers = &*commandBuffers[imageIndex];
 
         std::array signalSemaphores = { *renderFinishedSemaphores[static_cast<size_t>(currentFrame)] };
-        submitInfo.signalSemaphoreCount = (uint32_t)(signalSemaphores.size());
+        submitInfo.signalSemaphoreCount = static_cast<uint32_t>(signalSemaphores.size());
 
         submitInfo.pSignalSemaphores = signalSemaphores.data();
 
@@ -1391,6 +1393,7 @@ namespace vkr::part {
         if (extent.width == 0 || extent.height == 0) {
             return;
         }
+        framebufferExtent = extent;
         buildSwapchain(extent);
         buildImages(extent);
         buildGraphicsPipeline(extent);
@@ -1400,7 +1403,9 @@ namespace vkr::part {
         buildUniformBuffers();
         buildDescriptorPool();
         buildDescriptorSets();
-        buildCommandBuffers(extent);
+        for (vk::UniqueCommandBuffer& commandBuffer : commandBuffers) {
+            commandBuffer.reset();
+        }
         rebuildIsNeeded = false;
     }
 

@@ -14,6 +14,7 @@
 #include <iostream>
 #include <map>
 #include <math.h>
+#include <numeric>
 #include <optional>
 #include <thread>
 #include <typeindex>
