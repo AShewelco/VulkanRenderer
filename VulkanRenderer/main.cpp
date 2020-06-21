@@ -33,7 +33,6 @@ namespace vkr::test {
         info.debuggerMinimumLevel = api::DebuggerMinimunLevel::eWarning;
         info.deviceSelector = selectDevice;
         info.maxAntialiasing = vk::SampleCountFlagBits::e64;
-        info.model = data::Model("models/room.obj");
         info.texture = data::Texture("textures/room.png");
         info.onUpdate = [&](float delta, float time) {
             onUpdate(delta, time);

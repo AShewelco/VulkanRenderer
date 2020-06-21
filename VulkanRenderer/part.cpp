@@ -1056,7 +1056,7 @@ namespace vkr::part {
     }
 
     ModelDataPart::ModelDataPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
-        pushModel(data::Model("models/room.obj"));
+        //pushModel(data::Model("models/room.obj"));
     }
 
     ModelDataPart::~ModelDataPart() {
@@ -1279,7 +1279,9 @@ namespace vkr::part {
             getCreateInfo().onUpdate(now - last, now);
             last = now;
 
-            updateStagingBuffer();
+            if (getVertexBuffer() != VK_NULL_HANDLE) {
+                updateStagingBuffer();
+            }
 
             data::UBO ubo;
 
@@ -1339,13 +1341,19 @@ namespace vkr::part {
             {
                 commandBuffers[imageIndex]->bindPipeline(vk::PipelineBindPoint::eGraphics, getGraphicsPipeline());
 
-                commandBuffers[imageIndex]->bindVertexBuffers(0, getVertexBuffer(), static_cast<vk::DeviceSize>(0));
+                if (getVertexBuffer() != VK_NULL_HANDLE) {
+                    commandBuffers[imageIndex]->bindVertexBuffers(0, getVertexBuffer(), static_cast<vk::DeviceSize>(0));
+                }
 
-                commandBuffers[imageIndex]->bindIndexBuffer(getIndexBuffer(), 0, vk::IndexType::eUint32);
+                if (getIndexBuffer() != VK_NULL_HANDLE) {
+                    commandBuffers[imageIndex]->bindIndexBuffer(getIndexBuffer(), 0, vk::IndexType::eUint32);
+                }
 
                 commandBuffers[imageIndex]->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, getGraphicsPipelineLayout(), 0, 1, &getDescriptorSets()[imageIndex], 0, nullptr);
 
-                commandBuffers[imageIndex]->drawIndexed(static_cast<uint32_t>(getIndexCount()), 1, 0, 0, 0);
+                if (getVertexBuffer() != VK_NULL_HANDLE && getIndexBuffer() != VK_NULL_HANDLE) {
+                    commandBuffers[imageIndex]->drawIndexed(static_cast<uint32_t>(getIndexCount()), 1, 0, 0, 0);
+                }
             }
             commandBuffers[imageIndex]->endRenderPass();
 

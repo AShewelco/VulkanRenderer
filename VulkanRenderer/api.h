@@ -14,7 +14,6 @@ namespace vkr::api {
     struct RendererCreateInfo {
         DebuggerMinimunLevel debuggerMinimumLevel = DebuggerMinimunLevel::eDisabled;
         vk::SampleCountFlagBits maxAntialiasing = vk::SampleCountFlagBits::e1;
-        data::Model model;
         data::Texture texture;
         std::function<size_t(std::vector<vk::PhysicalDeviceProperties>)> deviceSelector = [](std::vector<vk::PhysicalDeviceProperties>) {
             return 0;
