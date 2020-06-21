@@ -124,7 +124,7 @@ namespace vkr::part {
     ) {
         if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
             spdlog::error(callbackData->pMessage);
-            throw std::runtime_error(callbackData->pMessage);
+            __debugbreak();
         }
 
         else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
@@ -1006,9 +1006,19 @@ namespace vkr::part {
     }
 
     TexturePart::TexturePart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
-        data::Texture& texture = getCreateInfo().texture;
-        mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texture.getDimentions().x, texture.getDimentions().y)))) + 1;
+        setTexture(data::Texture());
+    }
 
+    auto TexturePart::getTextureImageView() -> const vk::ImageView& {
+        return *textureImageView;
+    }
+
+    auto TexturePart::getTextureSampler() -> const vk::Sampler& {
+        return *sampler;
+    }
+
+    auto TexturePart::setTexture(const data::Texture& texture) -> void {
+        mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texture.getDimentions().x, texture.getDimentions().y)))) + 1;
 
         vk::DeviceSize imageSize = texture.getSize();
 
@@ -1047,17 +1057,7 @@ namespace vkr::part {
         sampler = getDevice().createSamplerUnique(samplerCreateInfo);
     }
 
-    auto TexturePart::getTextureImageView() -> const vk::ImageView& {
-        return *textureImageView;
-    }
-
-    auto TexturePart::getTextureSampler() -> const vk::Sampler& {
-        return *sampler;
-    }
-
-    ModelDataPart::ModelDataPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {
-        //pushModel(data::Model("models/room.obj"));
-    }
+    ModelDataPart::ModelDataPart(api::RendererCreateInfo&& rendererCreateInfo) : Base(std::move(rendererCreateInfo)) {}
 
     ModelDataPart::~ModelDataPart() {
         getDevice().unmapMemory(*vertexStagingBufferMemory);
@@ -1162,6 +1162,7 @@ namespace vkr::part {
         descriptorPoolCreateInfo.poolSizeCount = static_cast<uint32_t>(descriptorPoolSizes.size());
         descriptorPoolCreateInfo.pPoolSizes = descriptorPoolSizes.data();
         descriptorPoolCreateInfo.maxSets = static_cast<uint32_t>(getSwapchainImageCount());
+        descriptorPoolCreateInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 
         descriptorPool = getDevice().createDescriptorPoolUnique(descriptorPoolCreateInfo);
     }
@@ -1211,6 +1212,11 @@ namespace vkr::part {
 
             getDevice().updateDescriptorSets(descriptorWrites, {});
         }
+    }
+
+    auto DescriptorSetsPart::rebuildDescriptorSets() -> void {
+        getDevice().freeDescriptorSets(getDescriptorPool(), descriptorSets);
+        buildDescriptorSets();
     }
 
     auto DescriptorSetsPart::getDescriptorSets() -> const std::vector<vk::DescriptorSet>& {

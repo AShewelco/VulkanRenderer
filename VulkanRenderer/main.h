@@ -9,6 +9,7 @@ namespace vkr::api {
         auto getVertexSpan() -> std::span<data::Vertex>;
         auto getCamera() -> data::Camera&;
         auto getWindow() -> io::Window&;
+        auto setTexture(const data::Texture& texture) -> void;
         auto runLoop() -> void;
     };
 }
@@ -28,6 +29,8 @@ namespace vkr::test {
         data::Model room { "models/room.obj" };
         data::Model orange { "models/orange.obj" };
         std::vector<View> models;
+        data::Texture orangeTexture { "textures/orange.jpg" };
+        data::Texture roomTexture { "textures/room.png" };
     private:
         auto rendererCreateInfo() -> api::RendererCreateInfo;
         auto onUpdate(float delta, float time) -> void;

@@ -19,6 +19,12 @@ namespace vkr::api {
     auto Renderer::getWindow() -> io::Window& {
         return getWindowHandle().getWindow();
     }
+
+    auto Renderer::setTexture(const data::Texture& texture) -> void {
+        getDevice().waitIdle();
+        LastPart::setTexture(texture);
+        rebuildDescriptorSets();
+    }
     
     auto Renderer::runLoop() -> void {
         LastPart::runLoop();
@@ -32,8 +38,7 @@ namespace vkr::test {
         api::RendererCreateInfo info;
         info.debuggerMinimumLevel = api::DebuggerMinimunLevel::eWarning;
         info.deviceSelector = selectDevice;
-        info.maxAntialiasing = vk::SampleCountFlagBits::e64;
-        info.texture = data::Texture("textures/room.png");
+        info.maxAntialiasing = vk::SampleCountFlagBits::e1;
         info.onUpdate = [&](float delta, float time) {
             onUpdate(delta, time);
         };
@@ -76,15 +81,27 @@ namespace vkr::test {
                 getWindow().getMouse().setInputMode(io::CursorInputMode::eInfinite);
             }
             else {
-                data::Model roomRelative = room;
-                for (auto& vertex : roomRelative.vertices) {
-                    vertex.position += (getCamera().position + getCamera().getDirection() * 2.0f) * glm::vec3(-1.0f, 1.0f, -1.0f);
+                if (e.button == io::Button::eLeft) {
+                    data::Model roomRelative = room;
+                    for (auto& vertex : roomRelative.vertices) {
+                        vertex.position += (getCamera().position + getCamera().getDirection() * 2.0f) * glm::vec3(-1.0f, 1.0f, -1.0f);
+                    }
+                    pushModel(roomRelative);
+                    View view;
+                    view.start = getVertexSpan().size() - roomRelative.vertices.size();
+                    view.count = roomRelative.vertices.size();
+                    models.push_back(view);
                 }
-                pushModel(roomRelative);
-                View view;
-                view.start = getVertexSpan().size() - roomRelative.vertices.size();
-                view.count = roomRelative.vertices.size();
-                models.push_back(view);
+                else if (e.button == io::Button::eRight) {
+                    static bool flag;
+                    if (flag) {
+                        setTexture(roomTexture);
+                    }
+                    else {
+                        setTexture(orangeTexture);
+                    }
+                    flag = !flag;
+                }
             }
         });
 

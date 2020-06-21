@@ -17,6 +17,15 @@ namespace vkr::data {
         return glm::rotateZ(glm::vec3(1.0f, 0.0f, 0.0f), yaw);
     }
 
+    Texture::Texture() {
+        data = new uint8_t[4];
+        data[0] = 255;
+        data[1] = 255;
+        data[2] = 255;
+        data[3] = 255;
+        size = glm::ivec2(1, 1);
+    }
+
     Texture::Texture(const char* file) {
         int temp;
         data = stb::stbi_load(file, &size.x, &size.y, &temp, stb::STBI_rgb_alpha);

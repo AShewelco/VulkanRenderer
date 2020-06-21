@@ -27,7 +27,7 @@ namespace vkr::data {
 
     class Texture {
     public:
-        Texture() = default;
+        Texture();
         Texture(const char* file);
         Texture(const Texture&) = delete;
         Texture(Texture&& other);

@@ -231,6 +231,7 @@ namespace vkr::part {
         TexturePart(api::RendererCreateInfo&& rendererCreateInfo);
         auto getTextureImageView() -> const vk::ImageView&;
         auto getTextureSampler() -> const vk::Sampler&;
+        auto setTexture(const data::Texture& texture) -> void;
     private:
         uint32_t mipLevels;
         vk::UniqueImage image;
@@ -292,6 +293,7 @@ namespace vkr::part {
         auto getDescriptorSets() -> const std::vector<vk::DescriptorSet>&;
     public:
         auto buildDescriptorSets() -> void;
+        auto rebuildDescriptorSets() -> void;
     private:
         std::vector<vk::DescriptorSet> descriptorSets;
     };
